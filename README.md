@@ -125,9 +125,8 @@ res, err := client.Get(ctx, scrappey.RequestOptions{
 
 ```go
 sessionRes, err := client.CreateSession(ctx, scrappey.SessionOptions{
-	"proxyCountry": "UnitedStates",
-	"premiumProxy": true,
-})
+	"proxyCountry": "UnitedStates"
+	})
 if err != nil {
 	panic(err)
 }
@@ -143,6 +142,122 @@ active, _ := client.IsSessionActive(ctx, sessionID)
 fmt.Println("active:", active)
 
 _, _ = client.DestroySession(ctx, sessionID)
+```
+
+## Common API Examples
+
+Assume `client` and `ctx` are already initialized (as shown in Quick Start).
+
+### Browser actions (type, click, wait, execute JS)
+
+```go
+res, err := client.Get(ctx, scrappey.RequestOptions{
+	"url":              "https://example.com/",
+	"browserActions": []map[string]any{
+		{"type": "type", "cssSelector": "#email", "text": "user@example.com"},
+		{"type": "type", "cssSelector": "#password", "text": "my-password"},
+		{"type": "click", "cssSelector": "button[type='submit']"},
+		{"type": "wait_for_selector", "cssSelector": ".dashboard", "timeout": 15000},
+		{"type": "execute_js", "code": "document.title"},
+	},
+})
+if err != nil {
+	panic(err)
+}
+
+if jsReturn, ok := res.Solution["javascriptReturn"].([]any); ok && len(jsReturn) > 0 {
+	fmt.Println("Page title:", jsReturn[0])
+}
+```
+
+### Browser actions with captcha flow
+
+```go
+res, err := client.Get(ctx, scrappey.RequestOptions{
+	"url": "https://target-with-turnstile.example",
+	"browserActions": []map[string]any{
+		{"type": "solve_captcha", "captcha": "turnstile"},
+		{"type": "click", "cssSelector": "#submit", "when": "after_captcha"},
+		{"type": "wait", "wait": 2000, "when": "after_captcha"},
+	},
+})
+if err != nil {
+	panic(err)
+}
+
+fmt.Println("status:", res.SolutionInt("statusCode"))
+```
+
+### Screenshot capture
+
+```go
+res, err := client.Get(ctx, scrappey.RequestOptions{
+	"url":              "https://example.com",
+	"requestType":      "browser",
+	"screenshot":       true,
+	"screenshotWidth":  1920,
+	"screenshotHeight": 1080,
+})
+if err != nil {
+	panic(err)
+}
+
+if screenshotBase64, ok := res.Solution["screenshot"].(string); ok && screenshotBase64 != "" {
+	fmt.Println("Screenshot base64 length:", len(screenshotBase64))
+}
+if screenshotURL, ok := res.Solution["screenshotUrl"].(string); ok && screenshotURL != "" {
+	fmt.Println("Screenshot URL:", screenshotURL)
+}
+```
+
+### POST JSON with custom headers
+
+```go
+res, err := client.Post(ctx, scrappey.RequestOptions{
+	"url":         "https://httpbin.org/post",
+	"requestType": "request", // faster/cheaper mode
+	"postData": map[string]any{
+		"name":  "John Doe",
+		"email": "john@example.com",
+	},
+	"customHeaders": map[string]string{
+		"content-type": "application/json",
+	},
+})
+if err != nil {
+	panic(err)
+}
+
+fmt.Println("status:", res.SolutionInt("statusCode"))
+```
+
+### Raw command request (`Request`)
+
+```go
+res, err := client.Request(ctx, map[string]any{
+	"cmd":       "request.get",
+	"url":       "https://example.com"
+})
+if err != nil {
+	panic(err)
+}
+
+fmt.Println("data:", res.Data)
+fmt.Println("innerText:", res.SolutionString("innerText"))
+```
+
+### List active sessions
+
+```go
+sessionsRes, err := client.ListSessions(ctx)
+if err != nil {
+	panic(err)
+}
+
+fmt.Printf("Open sessions: %d/%d\n", sessionsRes.Open, sessionsRes.Limit)
+for _, s := range sessionsRes.Sessions {
+	fmt.Println("-", s.Session)
+}
 ```
 
 ## API Reference
