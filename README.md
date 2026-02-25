@@ -1,12 +1,76 @@
-# Scrappey Go Wrapper
+# Scrappey - Official Go Wrapper
 
-Official-style Go wrapper for the Scrappey API, aligned with the existing Python and Node.js wrappers.
+Official Go wrapper for the [Scrappey](https://scrappey.com) web scraping API.  
+Bypass antibot protections, run browser actions, manage sessions, and scrape with proxy support through a simple Go client.
 
-## Install
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## Features
+
+- Cloudflare and antibot bypass support through Scrappey API
+- Captcha solving support through Scrappey API
+- Session management (`sessions.create`, `sessions.destroy`, `sessions.list`, `sessions.active`)
+- All main HTTP commands (`request.get`, `request.post`, `request.put`, `request.delete`, `request.patch`)
+- Request mode selection (`browser` and `request`)
+- Flexible request payloads with `map[string]any` for full API compatibility
+- Configurable base URL and timeout
+
+## Pricing
+
+Scrappey pricing is API-side and shared across wrappers.
+
+| Feature | Scrappey | ZenRows | ScrapingBee | Scrapfly |
+|---------|----------|---------|-------------|----------|
+| Price per 1K scrapes (JS + residential) | EUR 1 | USD 25 | USD 25 | USD 187 |
+| Concurrent requests | 200 | 10 | 5 | 5 |
+| Billing model | Pay-as-you-go | Monthly | Monthly | Monthly |
+
+## How It Works
+
+```mermaid
+flowchart TB
+    A[Your Go App] --> B[wrapper-go Client]
+    B --> C[Scrappey API]
+    C --> D[Antibot + Captcha + Browser Engine]
+    D --> E[Target Website]
+    E --> D
+    D --> C
+    C --> B
+    B --> A
+```
+
+Request flow:
+
+1. Build options in Go (`map[string]any`).
+2. Wrapper sends one POST call to Scrappey API with `cmd`.
+3. Scrappey handles bypass/captcha/browser/proxy logic.
+4. Wrapper returns structured response (`APIResponse`).
+
+## Installation
 
 ```bash
 go get github.com/scrappey/wrapper-go
 ```
+
+Requires Go `1.21+`.
+
+## API Key Setup
+
+Set your Scrappey API key with environment variables.
+
+PowerShell:
+
+```powershell
+$env:SCRAPPEY_API_KEY="your_api_key_here"
+```
+
+Bash/Zsh:
+
+```bash
+export SCRAPPEY_API_KEY="your_api_key_here"
+```
+
+Or pass directly to `NewClient(...)`.
 
 ## Quick Start
 
@@ -39,52 +103,116 @@ func main() {
 }
 ```
 
-## API Surface
+## Request Modes
 
-The client mirrors the same core methods from the other wrappers:
+Scrappey supports two request modes:
 
-- `Request(ctx, payload)`
-- `Get(ctx, options)`
-- `Post(ctx, options)`
-- `Put(ctx, options)`
-- `Delete(ctx, options)`
-- `Patch(ctx, options)`
-- `CreateSession(ctx, options)`
-- `DestroySession(ctx, sessionID)`
-- `ListSessions(ctx, userID...)`
-- `IsSessionActive(ctx, sessionID)`
-- `CreateWebSocket(ctx, options)`
+| Mode | Description | Typical Use |
+|------|-------------|-------------|
+| `browser` | Headless browser mode | JS-heavy sites, browser actions, stronger antibot handling |
+| `request` | HTTP/TLS request mode | Faster and cheaper API/HTML requests |
 
-All option payloads use `map[string]any` to stay compatible with Scrappey's full and evolving request schema.
+Example using `request` mode:
 
-## Two Examples
-
-1. Basic request: `go run ./examples/basic`
-2. Session lifecycle: `go run ./examples/session`
-
-Set your key first:
-
-```bash
-export SCRAPPEY_API_KEY="your_key_here"
+```go
+res, err := client.Get(ctx, scrappey.RequestOptions{
+	"url":         "https://api.example.com/data",
+	"requestType": "request",
+})
 ```
 
-PowerShell:
+## Session Management
 
-```powershell
-$env:SCRAPPEY_API_KEY="your_key_here"
+```go
+sessionRes, err := client.CreateSession(ctx, scrappey.SessionOptions{
+	"proxyCountry": "UnitedStates",
+	"premiumProxy": true,
+})
+if err != nil {
+	panic(err)
+}
+
+sessionID := sessionRes.Session
+
+_, _ = client.Get(ctx, scrappey.RequestOptions{
+	"url":     "https://example.com",
+	"session": sessionID,
+})
+
+active, _ := client.IsSessionActive(ctx, sessionID)
+fmt.Println("active:", active)
+
+_, _ = client.DestroySession(ctx, sessionID)
 ```
 
-## Defaults
+## API Reference
 
-- Base URL: `https://publisher.scrappey.com/api/v1`
-- Timeout: `5m`
+### Constructor
 
-## Deploying To GitHub Securely
+```go
+client, err := scrappey.NewClient(apiKey, &scrappey.Config{
+	BaseURL: "https://publisher.scrappey.com/api/v1", // optional
+	Timeout: 5 * time.Minute,                          // optional
+})
+```
 
-- Never commit real keys to the repository.
-- Keep keys only in environment variables or GitHub Actions secrets.
-- `.env` files are ignored by git; use `.env.example` as a template.
-- Secret scanning runs automatically in CI (`.github/workflows/secret-scan.yml`).
+### Client Methods
+
+| Method | Description |
+|--------|-------------|
+| `Request(ctx, payload)` | Send raw command payload (`cmd` required) |
+| `Get(ctx, options)` | Send `request.get` |
+| `Post(ctx, options)` | Send `request.post` |
+| `Put(ctx, options)` | Send `request.put` |
+| `Delete(ctx, options)` | Send `request.delete` |
+| `Patch(ctx, options)` | Send `request.patch` |
+| `CreateSession(ctx, options)` | Send `sessions.create` |
+| `DestroySession(ctx, sessionID)` | Send `sessions.destroy` |
+| `ListSessions(ctx, userID...)` | Send `sessions.list` |
+| `IsSessionActive(ctx, sessionID)` | Send `sessions.active` and return bool |
+| `CreateWebSocket(ctx, options)` | Send `websocket.create` |
+
+## Response Structure
+
+Main response type: `APIResponse`
+
+- `Data` (`success` or `error`)
+- `Error`
+- `Session`
+- `TimeElapsed`
+- `Solution` (`map[string]any`)
+- `HTTPStatus`
+- `Raw` (full decoded JSON map)
+
+Helpers:
+
+- `SolutionString(key string)`
+- `SolutionInt(key string)`
+
+## Error Handling
+
+Error types:
+
+- `AuthenticationError`
+- `ConnectionError`
+- `TimeoutError`
+- `APIError` (base type)
+
+Transport error messages are sanitized to avoid leaking API keys from URLs.
+
+## Examples
+
+Two runnable examples are included:
+
+1. `go run ./examples/basic`
+2. `go run ./examples/session`
+
+## Security
+
+- Never commit real API keys.
+- Use GitHub Actions secrets for CI/CD.
+- `.env` files are gitignored.
+- Secret scanning runs in CI (`.github/workflows/secret-scan.yml`).
 
 GitHub Actions example:
 
@@ -92,3 +220,19 @@ GitHub Actions example:
 env:
   SCRAPPEY_API_KEY: ${{ secrets.SCRAPPEY_API_KEY }}
 ```
+
+More details: [SECURITY.md](./SECURITY.md)
+
+## Links
+
+- Website: [https://scrappey.com](https://scrappey.com)
+- App: [https://app.scrappey.com](https://app.scrappey.com)
+- Docs: [https://wiki.scrappey.com](https://wiki.scrappey.com)
+
+## License
+
+MIT - see [LICENSE](./LICENSE).
+
+## Disclaimer
+
+Use this software only in compliance with applicable laws, website terms, and privacy regulations.
