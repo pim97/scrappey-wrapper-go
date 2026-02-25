@@ -23,7 +23,7 @@ func main() {
 	targetURL := "https://httpbin.org/get"
 
 	response, err := client.Get(context.Background(), scrappey.RequestOptions{
-		"url":         targetURL,
+		"url": targetURL,
 	})
 	if err != nil {
 		log.Fatalf("request failed: %v", err)
