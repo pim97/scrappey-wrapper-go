@@ -29,12 +29,6 @@ type SessionOptions = map[string]any
 // WebSocketOptions contains parameters for websocket.create.
 type WebSocketOptions = map[string]any
 
-// SessionInfo describes one active session.
-type SessionInfo struct {
-	Session      string `json:"session"`
-	LastAccessed int64  `json:"lastAccessed,omitempty"`
-}
-
 // APIResponse is the common response envelope returned by Scrappey.
 type APIResponse struct {
 	Solution    map[string]any `json:"solution,omitempty"`
@@ -43,10 +37,6 @@ type APIResponse struct {
 	Session     string         `json:"session,omitempty"`
 	Error       string         `json:"error,omitempty"`
 	Info        string         `json:"info,omitempty"`
-	Active      bool           `json:"active,omitempty"`
-	Sessions    []SessionInfo  `json:"sessions,omitempty"`
-	Open        int            `json:"open,omitempty"`
-	Limit       int            `json:"limit,omitempty"`
 	Fingerprint map[string]any `json:"fingerprint,omitempty"`
 	Context     map[string]any `json:"context,omitempty"`
 

@@ -41,12 +41,6 @@ func main() {
 	}
 	fmt.Printf("Session request status: %d\n", requestResponse.SolutionInt("statusCode"))
 
-	active, err := client.IsSessionActive(ctx, sessionID)
-	if err != nil {
-		log.Fatalf("active check failed: %v", err)
-	}
-	fmt.Printf("Session active: %v\n", active)
-
 	if _, err := client.DestroySession(ctx, sessionID); err != nil {
 		log.Fatalf("destroy session failed: %v", err)
 	}

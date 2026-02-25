@@ -203,30 +203,6 @@ func (c *Client) DestroySession(ctx context.Context, session string) (*APIRespon
 	})
 }
 
-// ListSessions sends "sessions.list".
-// The userId parameter is optional and kept for compatibility with the Node wrapper.
-func (c *Client) ListSessions(ctx context.Context, userID ...int) (*APIResponse, error) {
-	payload := map[string]any{}
-	if len(userID) > 0 {
-		payload["userId"] = userID[0]
-	}
-	return c.requestWithCommand(ctx, "sessions.list", payload)
-}
-
-// IsSessionActive sends "sessions.active" and returns the boolean flag.
-func (c *Client) IsSessionActive(ctx context.Context, session string) (bool, error) {
-	if strings.TrimSpace(session) == "" {
-		return false, &APIError{Message: "session is required"}
-	}
-	response, err := c.requestWithCommand(ctx, "sessions.active", map[string]any{
-		"session": session,
-	})
-	if err != nil {
-		return false, err
-	}
-	return response.Active, nil
-}
-
 // CreateWebSocket sends "websocket.create".
 func (c *Client) CreateWebSocket(ctx context.Context, options WebSocketOptions) (*APIResponse, error) {
 	return c.requestWithCommand(ctx, "websocket.create", options)

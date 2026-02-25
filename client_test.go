@@ -87,29 +87,6 @@ func TestRequestRequiresCmd(t *testing.T) {
 	}
 }
 
-func TestIsSessionActive(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"active":true}`))
-	}))
-	defer server.Close()
-
-	client, err := NewClient("test-key", &Config{BaseURL: server.URL})
-	if err != nil {
-		t.Fatalf("failed creating client: %v", err)
-	}
-
-	active, err := client.IsSessionActive(context.Background(), "session-id")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !active {
-		t.Fatal("expected active session")
-	}
-}
-
 func TestAuthenticationErrorOnHTTP401(t *testing.T) {
 	t.Parallel()
 

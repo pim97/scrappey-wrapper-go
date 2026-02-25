@@ -9,7 +9,7 @@ Bypass antibot protections, run browser actions, manage sessions, and scrape wit
 
 - Cloudflare and antibot bypass support through Scrappey API
 - Captcha solving support through Scrappey API
-- Session management (`sessions.create`, `sessions.destroy`, `sessions.list`, `sessions.active`)
+- Session management (`sessions.create`, `sessions.destroy`)
 - All main HTTP commands (`request.get`, `request.post`, `request.put`, `request.delete`, `request.patch`)
 - Request mode selection (`browser` and `request`)
 - Flexible request payloads with `map[string]any` for full API compatibility
@@ -121,12 +121,14 @@ res, err := client.Get(ctx, scrappey.RequestOptions{
 })
 ```
 
+Note: in `request` mode, `solution.currentUrl` may be empty depending on endpoint/redirect behavior.
+
 ## Session Management
 
 ```go
 sessionRes, err := client.CreateSession(ctx, scrappey.SessionOptions{
-	"proxyCountry": "UnitedStates"
-	})
+	"proxyCountry": "UnitedStates",
+})
 if err != nil {
 	panic(err)
 }
@@ -137,9 +139,6 @@ _, _ = client.Get(ctx, scrappey.RequestOptions{
 	"url":     "https://example.com",
 	"session": sessionID,
 })
-
-active, _ := client.IsSessionActive(ctx, sessionID)
-fmt.Println("active:", active)
 
 _, _ = client.DestroySession(ctx, sessionID)
 ```
@@ -152,7 +151,8 @@ Assume `client` and `ctx` are already initialized (as shown in Quick Start).
 
 ```go
 res, err := client.Get(ctx, scrappey.RequestOptions{
-	"url":              "https://example.com/",
+	"url":         "https://example.com/",
+	"requestType": "browser",
 	"browserActions": []map[string]any{
 		{"type": "type", "cssSelector": "#email", "text": "user@example.com"},
 		{"type": "type", "cssSelector": "#password", "text": "my-password"},
@@ -174,11 +174,12 @@ if jsReturn, ok := res.Solution["javascriptReturn"].([]any); ok && len(jsReturn)
 
 ```go
 res, err := client.Get(ctx, scrappey.RequestOptions{
-	"url": "https://target-with-turnstile.example",
+	"url":         "https://target-with-turnstile.example",
+	"requestType": "browser",
 	"browserActions": []map[string]any{
 		{"type": "solve_captcha", "captcha": "turnstile"},
-		{"type": "click", "cssSelector": "#submit", "when": "after_captcha"},
-		{"type": "wait", "wait": 2000, "when": "after_captcha"},
+		{"type": "click", "cssSelector": "#submit"},
+		{"type": "wait_for_selector", "cssSelector": ".success", "timeout": 15000},
 	},
 })
 if err != nil {
@@ -236,7 +237,8 @@ fmt.Println("status:", res.SolutionInt("statusCode"))
 ```go
 res, err := client.Request(ctx, map[string]any{
 	"cmd":       "request.get",
-	"url":       "https://example.com"
+	"url":       "https://example.com",
+	"innerText": true,
 })
 if err != nil {
 	panic(err)
@@ -244,20 +246,6 @@ if err != nil {
 
 fmt.Println("data:", res.Data)
 fmt.Println("innerText:", res.SolutionString("innerText"))
-```
-
-### List active sessions
-
-```go
-sessionsRes, err := client.ListSessions(ctx)
-if err != nil {
-	panic(err)
-}
-
-fmt.Printf("Open sessions: %d/%d\n", sessionsRes.Open, sessionsRes.Limit)
-for _, s := range sessionsRes.Sessions {
-	fmt.Println("-", s.Session)
-}
 ```
 
 ## API Reference
@@ -283,8 +271,6 @@ client, err := scrappey.NewClient(apiKey, &scrappey.Config{
 | `Patch(ctx, options)` | Send `request.patch` |
 | `CreateSession(ctx, options)` | Send `sessions.create` |
 | `DestroySession(ctx, sessionID)` | Send `sessions.destroy` |
-| `ListSessions(ctx, userID...)` | Send `sessions.list` |
-| `IsSessionActive(ctx, sessionID)` | Send `sessions.active` and return bool |
 | `CreateWebSocket(ctx, options)` | Send `websocket.create` |
 
 ## Response Structure
@@ -342,7 +328,7 @@ More details: [SECURITY.md](./SECURITY.md)
 
 - Website: [https://scrappey.com](https://scrappey.com)
 - App: [https://app.scrappey.com](https://app.scrappey.com)
-- Docs: [https://wiki.scrappey.com](https://wiki.scrappey.com)
+- Docs: [https://docs.scrappey.com/docs/welcome](https://docs.scrappey.com/docs/welcome)
 
 ## License
 
